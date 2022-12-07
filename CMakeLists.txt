@@ -6,7 +6,43 @@ include(CheckIPOSupported)
 
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 
-project(ninja)
+project(ninja C CXX)
+
+# --- build Proto file
+include(../cmake/common.cmake) # 编译proto文件，把这个include进来
+
+# Proto file
+get_filename_component(ninja_proto "../../protos/ninja_grpc.proto" ABSOLUTE)
+get_filename_component(ninja_proto_path "${ninja_proto}" PATH)
+
+# Generated sources
+set(ninja_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/ninja_grpc.pb.cc")
+set(ninja_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/ninja_grpc.pb.h")
+set(ninja_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/ninja_grpc.grpc.pb.cc")
+set(ninja_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/ninja_grpc.grpc.pb.h")
+add_custom_command(
+      OUTPUT "${ninja_proto_srcs}" "${ninja_proto_hdrs}" "${ninja_grpc_srcs}" "${ninja_grpc_hdrs}"
+      COMMAND ${_PROTOBUF_PROTOC}
+      ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}"
+        --cpp_out "${CMAKE_CURRENT_BINARY_DIR}"
+        -I "${ninja_proto_path}"
+        --plugin=protoc-gen-grpc="${_GRPC_CPP_PLUGIN_EXECUTABLE}"
+        "${ninja_proto}"
+      DEPENDS "${ninja_proto}")
+
+# Include generated *.pb.h files
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
+# ninja_grpc_proto
+add_library(ninja_grpc_proto
+  ${ninja_grpc_srcs}
+  ${ninja_grpc_hdrs}
+  ${ninja_proto_srcs}
+  ${ninja_proto_hdrs})
+target_link_libraries(ninja_grpc_proto
+  ${_REFLECTION}
+  ${_GRPC_GRPCPP}
+  ${_PROTOBUF_LIBPROTOBUF})
 
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -125,6 +161,11 @@ add_library(libninja OBJECT
 	src/version.cc
 	# src/remoteprocess.cc
 )
+target_link_libraries(libninja
+  ninja_grpc_proto
+    ${_REFLECTION}
+    ${_GRPC_GRPCPP}
+    ${_PROTOBUF_LIBPROTOBUF})
 if(WIN32)
 	target_sources(libninja PRIVATE
 		src/subprocess-win32.cc

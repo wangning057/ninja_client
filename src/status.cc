@@ -283,7 +283,7 @@ StatusSerializer::StatusSerializer(const BuildConfig& config) :
     EdgeCommand c;
     c.command = config.frontend;
     c.use_console = true;
-    subprocess_ = subprocess_set_.Add(c, output_pipe[0]);
+    subprocess_ = subprocess_set_.Add(c);
     close(output_pipe[0]);
   } else if (config.frontend_file != NULL) {
     f_ = fopen(config.frontend_file, "wb");

@@ -59,7 +59,7 @@ struct Subprocess {
 
  private:
   Subprocess(bool use_console);
-  bool Start(struct SubprocessSet* set, const EdgeCommand& cmd, int extra_fd);
+  bool Start(struct SubprocessSet* set, const std::string& command);
   void OnPipeReady();
 
   string buf_;
@@ -91,7 +91,7 @@ struct SubprocessSet {
   SubprocessSet();
   ~SubprocessSet();
 
-  Subprocess* Add(const EdgeCommand& cmd, int extra_fd = -1);
+  Subprocess* Add(const EdgeCommand& cmd);
   bool DoWork();
   Subprocess* NextFinished();
   void Clear();
