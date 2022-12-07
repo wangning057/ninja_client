@@ -1,0 +1,145 @@
+// Copyright 2016 Google Inc. All rights reserved
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+cc_defaults {
+    name: "ninja_defaults",
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Wno-deprecated",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+        "-fno-exceptions",
+        "-fvisibility=hidden",
+        "-DNINJA_PYTHON=\"python\"",
+        "-DNINJA_HAVE_BROWSE",
+        "-UNDEBUG",
+    ],
+    target: {
+        linux_glibc: {
+            cflags: ["-DUSE_PPOLL"],
+        }
+    }
+}
+
+genrule {
+    name: "ninja_browse_py",
+
+    cmd: "$(location src/inline.sh) kBrowsePy <$(in) >$(out)",
+    tool_files: ["src/inline.sh"],
+
+    srcs: ["src/browse.py"],
+    out: ["build/browse_py.h"],
+}
+
+cc_library_host_static {
+    name: "libninja",
+    defaults: ["ninja_defaults"],
+    generated_headers: ["ninja_browse_py"],
+    srcs: [
+        "src/build.cc",
+        "src/build_log.cc",
+        "src/clean.cc",
+        "src/clparser.cc",
+        "src/debug_flags.cc",
+        "src/depfile_parser.cc",
+        "src/deps_log.cc",
+        "src/disk_interface.cc",
+        "src/dyndep.cc",
+        "src/dyndep_parser.cc",
+        "src/edit_distance.cc",
+        "src/eval_env.cc",
+        "src/graph.cc",
+        "src/graphviz.cc",
+        "src/lexer.cc",
+        "src/line_printer.cc",
+        "src/manifest_chunk_parser.cc",
+        "src/manifest_parser.cc",
+        "src/metrics.cc",
+        "src/parser.cc",
+        "src/proto.cc",
+        "src/state.cc",
+        "src/status.cc",
+        "src/thread_pool.cc",
+        "src/util.cc",
+        "src/version.cc",
+        "src/browse.cc",
+        "src/subprocess-posix.cc",
+    ],
+}
+
+cc_binary_host {
+    name: "ninja",
+    defaults: ["ninja_defaults"],
+    srcs: ["src/ninja.cc"],
+    static_libs: ["libninja"],
+
+    // Use jemalloc for better multithreaded allocation performance. e.g. Using
+    // jemalloc can improve the overall runtime by 10x vs the default allocator.
+    target: {
+        glibc: {
+            shared_libs: ["libjemalloc5"],
+        },
+        musl: {
+            static_libs: ["libjemalloc5"],
+            // LLVM toolchain builds use LD_LIBRARY_PATH when running ninja
+            // to affect subprocesses of ninja, but that breaks ninja
+            // when it uses an incompatible libc.  Making ninja static avoids
+            // the problem.
+            static_executable: true,
+        },
+    },
+}
+
+cc_test_host {
+    name: "ninja_test",
+    defaults: ["ninja_defaults"],
+    static_libs: ["libninja"],
+    gtest: false,
+    srcs: [
+        "src/build_log_test.cc",
+        "src/build_test.cc",
+        "src/clean_test.cc",
+        "src/clparser_test.cc",
+        "src/depfile_parser_test.cc",
+        "src/deps_log_test.cc",
+        "src/disk_interface_test.cc",
+        "src/dyndep_parser_test.cc",
+        "src/edit_distance_test.cc",
+        "src/graph_test.cc",
+        "src/lexer_test.cc",
+        "src/manifest_parser_test.cc",
+        "src/ninja_test.cc",
+        "src/state_test.cc",
+        "src/status_test.cc",
+        "src/subprocess_test.cc",
+        "src/test.cc",
+        "src/util_test.cc",
+    ],
+}
+
+cc_test_host {
+    name: "ninja_tests",
+    gtest: false,
+    defaults: ["ninja_defaults"],
+    test_per_src: true,
+    static_libs: ["libninja"],
+    srcs: [
+        "src/build_log_perftest.cc",
+        "src/canon_perftest.cc",
+        "src/depfile_parser_perftest.cc",
+        "src/hash_collision_bench.cc",
+        "src/manifest_parser_perftest.cc",
+    ],
+}
